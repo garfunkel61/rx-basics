@@ -1,7 +1,12 @@
 body {}
 
-.sclick, .bdclick {
+.sclick, .bdclick, .user {
   border: 1px solid gray;
   margin-bottom: 20px;
   padding: 0px 20px 20px;
+}
+
+.user-avatar {
+  height: 50px;
+  border-radius: 50%;
 }

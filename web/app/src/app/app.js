@@ -7,6 +7,10 @@ import './app.scss';
 import Rx from 'rxjs/Rx';
 import $ from "jquery";
 
+// ===========================
+// CLICKERS COUNT
+// ===========================
+
 let singleClickButton = document.querySelector('.singleClick'),
     doubleClickButton = document.querySelector('.doubleClick'),
     sdClickButton = document.querySelector('.sdClick'),
@@ -63,3 +67,70 @@ sdClickEventStream = sdSingleClickEventStream
       sdDLabel.textContent = sdDAmount;
     }
   });
+
+
+// ===========================
+// USERS
+// ===========================
+
+let startupRequestStream,
+    onRefreshRequestStream,
+    responseStream,
+    refreshClicksStream,
+    refreshButton = document.querySelector('.refreshButton');
+
+startupRequestStream = Rx.Observable.of('https://api.github.com/users');
+
+// -----c------------> gettings clicks, map: to requests urls
+// -----rqU---------->
+
+refreshClicksStream = Rx.Observable.fromEvent(refreshButton,  'click');
+onRefreshRequestStream = refreshClicksStream
+  .map(ev => {
+    let offset = Math.floor(Math.random()*500);
+    return 'https://api.github.com/users?since=' + offset;
+  });
+
+
+
+// -------rqU---------rqU---> refresClick request
+// srqU---------------------> startup request, merged:
+// srqU---rqU---------rqU---> flatMap: - nie .map bo powstał by metastream (event był by streamem, więc go spłaszczamy)
+// usD----usD---------usD--->
+// ^^
+responseStream = onRefreshRequestStream.merge(startupRequestStream)
+  .flatMap(requestUrl => Rx.Observable.fromPromise($.getJSON(requestUrl)));
+
+
+// ---usD---------------> map
+// N---uD-------uD------> startWith null
+// -----------N---------> refreshClicksStream, ustawiamy user data na null i mergujemy z userStream
+// N---ud-----N-uD------> userData zemergorwany z nullami pochodzącymi z kliknieć refresh
+//^^
+function createUserStream(responseStream) {
+  return responseStream
+    .map(listUsers => listUsers[Math.floor(Math.random()*listUsers.length)])
+    .startWith(null)
+    .merge(refreshClicksStream.map(ev => null));
+}
+
+let user1Stream = createUserStream(responseStream),
+    user2Stream = createUserStream(responseStream),
+    user3Stream = createUserStream(responseStream);
+
+function renderUser(user, selector) {
+  let elem = document.querySelector(selector),
+      nameElem = elem.querySelector('.user-name'),
+      avatarElem = elem.querySelector('.user-avatar');
+  if (user) {
+    avatarElem.src = user.avatar_url;
+    nameElem.textContent = user.login;
+  } else {
+    avatarElem.src = '';
+    nameElem.textContent = 'null';
+  }
+}
+
+user1Stream.subscribe(user => renderUser(user, '.user1'));
+user2Stream.subscribe(user => renderUser(user, '.user2'));
+user3Stream.subscribe(user => renderUser(user, '.user3'));
